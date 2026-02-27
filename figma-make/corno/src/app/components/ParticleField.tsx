@@ -1,15 +1,15 @@
 import { useEffect, useRef } from "react";
 
 /**
- * TUNEFLOW LIQUID GLASS REFRACTION SYSTEM
+ * TUNEFLOW POINT CLOUD SYSTEM
  * 
- * Tiny floating glass squares/shards that bend and refract the background
- * like ocean caustics. Motion model:
- * - Idle: drift mostly around center as loose cloud (no defined shape)
- * - Note detected: subtle outward expansion pulse, then settles back
- * - Tuning improves: more cohesive and concentrated near center, calmer, synchronized
- * - In tune: converges toward center organically (NO ring, NO circular geometry, NO orbit)
- * 
+ * Tiny luminous points that pulse and drift to suggest energy in the tuning field.
+ * Motion model:
+ * - Idle: gentle cloud with soft drift.
+ * - Note detected: subtle outward pulse, then settles back.
+ * - Tuning improves: more cohesive, calmer, synchronized.
+ * - In tune: converges toward center while maintaining a loose cloud feel.
+ *
  * HARD CONSTRAINT: Stochastic distribution always. No symmetric patterns.
  */
 
@@ -474,38 +474,23 @@ function drawGlassShard(
   ctx.rotate(shard.rotation);
 
   const size = shard.size;
-  const halfSize = size / 2;
 
   // Layered depth: front shards sharper, back shards softer
-  const blurAmount = reducedEffects ? 0.35 : shard.depth * 1.5;
+  const radius = Math.max(1.4, size * 0.5);
+  const blurAmount = reducedEffects ? 0.4 : shard.depth * 1.6;
   ctx.shadowBlur = blurAmount;
+  ctx.shadowColor = backgroundColor;
 
-  // Main glass body - slightly darkened background color for refraction
-  const refractionAlpha = shard.alpha * 0.3 * introAlpha;
-  ctx.fillStyle = backgroundColor.replace("rgb", "rgba").replace(")", `, ${refractionAlpha})`);
-  ctx.fillRect(-halfSize, -halfSize, size, size);
+  const baseAlpha = Math.min(1, shard.alpha * 1.2 * introAlpha);
+  const gradient = ctx.createRadialGradient(0, 0, radius * 0.1, 0, 0, radius);
+  gradient.addColorStop(0, `rgba(255, 255, 255, ${baseAlpha})`);
+  gradient.addColorStop(0.35, `rgba(255, 255, 255, ${baseAlpha * 0.45})`);
+  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
 
-  // Specular edge highlights (bright rim light)
-  ctx.strokeStyle = `rgba(255, 255, 255, ${shard.alpha * 0.6 * introAlpha})`;
-  ctx.lineWidth = 0.5;
-  ctx.strokeRect(-halfSize, -halfSize, size, size);
-
-  // Caustic glint (top-right corner)
-  const glintGradient = ctx.createLinearGradient(-halfSize, -halfSize, halfSize, halfSize);
-  glintGradient.addColorStop(0, `rgba(255, 255, 255, ${shard.alpha * 0.4 * introAlpha})`);
-  glintGradient.addColorStop(0.5, "rgba(255, 255, 255, 0)");
-  glintGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-  
-  ctx.fillStyle = glintGradient;
-  ctx.fillRect(-halfSize, -halfSize, size * 0.7, size * 0.7);
-
-  // Internal reflection line (diagonal)
-  ctx.strokeStyle = `rgba(255, 255, 255, ${shard.alpha * 0.25 * introAlpha})`;
-  ctx.lineWidth = 0.3;
+  ctx.fillStyle = gradient;
   ctx.beginPath();
-  ctx.moveTo(-halfSize * 0.6, -halfSize * 0.8);
-  ctx.lineTo(halfSize * 0.4, halfSize * 0.2);
-  ctx.stroke();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.restore();
 }

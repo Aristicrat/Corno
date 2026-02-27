@@ -235,7 +235,7 @@ export function MainTunerScreen() {
         />
       </div>
 
-      <div className="absolute top-6 left-5 z-30">
+      <div className="absolute top-6 left-5 z-[75]">
         <button
           type="button"
           onClick={() => setMenuOpen((prev) => !prev)}
@@ -261,7 +261,7 @@ export function MainTunerScreen() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.24, ease: "easeOut" }}
-            className="absolute top-20 left-5 right-5 z-20 max-w-sm"
+          className="absolute top-20 left-5 right-5 z-[80] max-w-sm"
           >
             <GlassSurface className="rounded-2xl p-3">
               <div className="flex items-center justify-between gap-3">
