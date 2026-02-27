@@ -74,6 +74,9 @@ export function ParticleField({
   const introProgressRef = useRef(0);
   const glowCanvasCacheRef = useRef<Map<number, HTMLCanvasElement | OffscreenCanvas>>(new Map());
   const frameTickerRef = useRef(0);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | OffscreenCanvas | null>(null);
+  const offscreenCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const renderSurfaceSizeRef = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -87,12 +90,51 @@ export function ParticleField({
     const isIOSRuntime =
       isIOSDevice || (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
     const dprCap = isIOSRuntime ? 1.5 : 2;
+    const renderScale = isIOSDevice ? 0.66 : 1;
     const deviceParticleScale = isIOSDevice ? 0.55 : 1;
     const minParticles = isIOSDevice ? 80 : 120;
     const resolvedParticleCount = Math.max(
       minParticles,
       Math.round(particleCount * deviceParticleScale * (isIOSRuntime ? 0.62 : 1))
     );
+
+    const ensureRenderSurface = () => {
+      const width = Math.max(
+        1,
+        Math.round(
+          canvas.offsetWidth * (renderScale === 1 ? 1 : renderScale)
+        )
+      );
+      const height = Math.max(
+        1,
+        Math.round(
+          canvas.offsetHeight * (renderScale === 1 ? 1 : renderScale)
+        )
+      );
+      renderSurfaceSizeRef.current = { width, height };
+
+      if (renderScale === 1) {
+        offscreenCanvasRef.current = canvas;
+        offscreenCtxRef.current = ctx;
+        return;
+      }
+
+      let offscreenCanvas = offscreenCanvasRef.current;
+      if (
+        !offscreenCanvas ||
+        offscreenCanvas.width !== width ||
+        offscreenCanvas.height !== height
+      ) {
+        offscreenCanvas =
+          typeof OffscreenCanvas !== "undefined"
+            ? new OffscreenCanvas(width, height)
+            : document.createElement("canvas");
+        offscreenCanvasRef.current = offscreenCanvas;
+      }
+      offscreenCanvas.width = width;
+      offscreenCanvas.height = height;
+      offscreenCtxRef.current = offscreenCanvas.getContext("2d", { alpha: true });
+    };
 
     // Set canvas size
     const setCanvasSize = () => {
@@ -102,6 +144,7 @@ export function ParticleField({
       // Reset transform before scaling to avoid cumulative scale on repeated resizes.
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
+      ensureRenderSurface();
     };
 
     setCanvasSize();
@@ -193,9 +236,15 @@ export function ParticleField({
       const framesSinceUpdate = tick % targetUpdateInterval;
       const shouldRecalcTargets = !isIOSDevice || framesSinceUpdate === 0;
       const interpFactor = isIOSDevice ? framesSinceUpdate / targetUpdateInterval : 1;
-      
-      // Clear with transparency
-      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+      const renderCtx =
+        renderScale === 1 ? ctx : offscreenCtxRef.current;
+      const { width: renderWidth, height: renderHeight } = renderSurfaceSizeRef.current;
+      if (!renderCtx || !renderWidth || !renderHeight) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      renderCtx.clearRect(0, 0, renderWidth, renderHeight);
 
       const centerX = canvas.offsetWidth / 2;
       const centerY = canvas.offsetHeight / 2 - 40;
@@ -482,9 +531,9 @@ export function ParticleField({
         if (shouldRecalcTargets) {
           shard.prevTargetX = shard.targetX;
           shard.prevTargetY = shard.targetY;
+          shard.targetX = nextTargetX;
+          shard.targetY = nextTargetY;
         }
-        shard.targetX = nextTargetX;
-        shard.targetY = nextTargetY;
 
         // Smooth attraction to target position
         const dx = targetX - shard.x;
@@ -531,14 +580,31 @@ export function ParticleField({
         // Update rotation
         shard.rotation += shard.rotationSpeed;
 
-        // Draw luminous point using cached glow sprite
         drawGlowParticle(
-          ctx,
+          renderCtx,
           shard,
+          targetX,
+          targetY,
           (0.14 + intro * 0.86) * opacityMultiplier,
-          getGlowSprite
+          getGlowSprite,
+          renderScale
         );
       });
+
+      if (renderScale < 1 && offscreenCanvasRef.current) {
+        ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        ctx.drawImage(
+          offscreenCanvasRef.current,
+          0,
+          0,
+          renderSurfaceSizeRef.current.width,
+          renderSurfaceSizeRef.current.height,
+          0,
+          0,
+          canvas.offsetWidth,
+          canvas.offsetHeight
+        );
+      }
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -568,20 +634,28 @@ export function ParticleField({
 function drawGlowParticle(
   ctx: CanvasRenderingContext2D,
   shard: Shard,
+  targetX: number,
+  targetY: number,
   introAlpha = 1,
-  glowSpriteGetter: (radius: number) => HTMLCanvasElement | OffscreenCanvas
+  glowSpriteGetter: (radius: number) => HTMLCanvasElement | OffscreenCanvas,
+  renderScale = 1
 ) {
-  ctx.save();
-  ctx.translate(shard.x, shard.y);
-  ctx.rotate(shard.rotation);
-
   const radius = Math.max(1.4, shard.size * 0.5);
   const sprite = glowSpriteGetter(radius);
   const spriteSize = sprite.width;
+  const drawSize = spriteSize * renderScale;
+  const drawX = targetX * renderScale;
+  const drawY = targetY * renderScale;
   const baseAlpha = Math.min(1, shard.alpha * 1.1 * introAlpha);
 
+  ctx.save();
   ctx.globalAlpha = baseAlpha;
-  ctx.drawImage(sprite, -spriteSize / 2, -spriteSize / 2, spriteSize, spriteSize);
-
+  ctx.drawImage(
+    sprite,
+    drawX - drawSize / 2,
+    drawY - drawSize / 2,
+    drawSize,
+    drawSize
+  );
   ctx.restore();
 }
