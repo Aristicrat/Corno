@@ -4,7 +4,6 @@ import { motion } from "motion/react";
 import { ParticleField } from "../components/ParticleField";
 import { FluidGlass } from "../components/FluidGlass";
 import { IPhoneFrame } from "../components/iPhoneFrame";
-import { interpolateRgb } from "../theme/appleColors";
 
 const HOME_PALETTE = [
   "rgb(0,200,179)",
@@ -24,7 +23,7 @@ export function SplashScreen() {
     const interval = setInterval(() => {
       setMoodCycleIndex((prev) => {
         const next = (prev + 1) % HOME_PALETTE.length;
-        setBgColor(interpolateRgb(HOME_PALETTE[prev], HOME_PALETTE[next], 0.35));
+        setBgColor(HOME_PALETTE[next]);
         return next;
       });
       setTransitionMs(6400);

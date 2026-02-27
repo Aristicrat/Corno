@@ -5,8 +5,9 @@ import { Mic, AlertCircle } from "lucide-react";
 import { ParticleField } from "../components/ParticleField";
 import { FluidGlass } from "../components/FluidGlass";
 import { IPhoneFrame } from "../components/iPhoneFrame";
-const MIC_BG = "rgb(10,12,16)";
+const MIC_BG = "rgb(7,8,10)";
 const MIC_PARTICLE_CYAN = "rgb(0,160,185)";
+const MIC_BG_ANIMATION = ["rgb(6,7,9)", "rgb(9,10,12)", "rgb(12,13,15)", "rgb(8,9,11)", "rgb(6,7,9)"];
 
 export function MicPermissionScreen() {
   const navigate = useNavigate();
@@ -49,8 +50,50 @@ export function MicPermissionScreen() {
       <div className="relative w-full h-full overflow-hidden flex flex-col">
         <motion.div
           className="absolute inset-0"
-          animate={{ backgroundColor: MIC_BG }}
-          transition={{ duration: 1.1, ease: "easeOut" }}
+          animate={{ backgroundColor: MIC_BG_ANIMATION }}
+          transition={{ duration: 12, ease: "easeInOut", repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(125% 98% at 18% 12%, rgba(255,255,255,0.15) 0%, rgba(210,214,223,0.08) 23%, rgba(0,0,0,0) 58%), radial-gradient(100% 86% at 82% 80%, rgba(190,196,209,0.14) 0%, rgba(144,150,163,0.06) 30%, rgba(0,0,0,0) 66%)",
+          }}
+          animate={{
+            opacity: [0.48, 0.72, 0.6, 0.68, 0.48],
+            scale: [1, 1.035, 1.01, 1.04, 1],
+          }}
+          transition={{ duration: 10.5, ease: "easeInOut", repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute inset-[-20%] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at 30% 35%, rgba(255,255,255,0.12) 0%, rgba(202,206,216,0.05) 34%, rgba(0,0,0,0) 70%)",
+          }}
+          animate={{ x: ["-6%", "5%", "-4%", "2%"], y: ["-4%", "3%", "-1%", "2%"], scale: [1, 1.06, 1.02, 1] }}
+          transition={{ duration: 14, ease: "easeInOut", repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute inset-[-25%] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at 72% 66%, rgba(224,228,236,0.1) 0%, rgba(173,178,189,0.038) 30%, rgba(0,0,0,0) 68%)",
+            mixBlendMode: "screen",
+          }}
+          animate={{ x: ["5%", "-6%", "3%"], y: ["3%", "-4%", "1%"], scale: [1.03, 0.99, 1.04] }}
+          transition={{ duration: 16, ease: "easeInOut", repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "conic-gradient(from 120deg at 50% 50%, rgba(255,255,255,0.05), rgba(0,0,0,0) 18%, rgba(210,214,222,0.06) 44%, rgba(0,0,0,0) 62%, rgba(164,170,182,0.05) 82%, rgba(0,0,0,0) 100%)",
+            mixBlendMode: "screen",
+            filter: "blur(28px)",
+          }}
+          animate={{ rotate: [0, 16, -12, 0], opacity: [0.13, 0.23, 0.18, 0.13] }}
+          transition={{ duration: 22, ease: "easeInOut", repeat: Infinity }}
         />
         <FluidGlass color={MIC_BG} />
         <ParticleField

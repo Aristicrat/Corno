@@ -1,29 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="lambda" x1="20%" y1="10%" x2="90%" y2="95%">
-      <stop offset="0%" stop-color="#9fd4ff"/>
-      <stop offset="45%" stop-color="#3f9dff"/>
-      <stop offset="100%" stop-color="#0b53d8"/>
+    <linearGradient id="mobiusA" x1="90" y1="190" x2="430" y2="322" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9CF2E7"/>
+      <stop offset="35%" stop-color="#58D9FF"/>
+      <stop offset="70%" stop-color="#4E76FF"/>
+      <stop offset="100%" stop-color="#5EF1D3"/>
     </linearGradient>
-    <radialGradient id="glow" cx="50%" cy="52%" r="56%">
-      <stop offset="0%" stop-color="#2d8bff" stop-opacity="0.52"/>
-      <stop offset="100%" stop-color="#07070a" stop-opacity="0"/>
+    <linearGradient id="mobiusB" x1="90" y1="322" x2="430" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B9F7EF"/>
+      <stop offset="40%" stop-color="#7ADFFF"/>
+      <stop offset="75%" stop-color="#5C81FF"/>
+      <stop offset="100%" stop-color="#7AF7E4"/>
     </linearGradient>
+    <filter id="softGlow" x="50" y="110" width="412" height="292" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
   </defs>
 
-  <rect width="512" height="512" rx="120" fill="#07070a"/>
-  <circle cx="256" cy="256" r="206" fill="url(#glow)"/>
+  <rect width="512" height="512" rx="120" fill="#070B12"/>
 
-  <path
-    d="M132 390h84l86-230 80 230h-86l-18-56h-60l-18 56h-68zm104-120h30l-15-48-15 48z"
-    fill="url(#lambda)"
-  />
+  <g filter="url(#softGlow)" opacity="0.32">
+    <path d="M110 256C110 188 178 146 256 146C334 146 402 188 402 256C402 324 334 366 256 366C178 366 110 324 110 256Z" fill="#58D9FF"/>
+  </g>
 
-  <path
-    d="M176 392l96-258"
-    stroke="#ffffff"
-    stroke-opacity="0.32"
-    stroke-width="10"
-    stroke-linecap="round"
-  />
+  <path d="M102 260C102 191 171 146 256 146C324 146 381 175 413 224L438 214C399 151 333 120 256 120C161 120 84 182 84 260C84 338 161 400 256 400C334 400 401 368 438 306L413 296C381 344 324 374 256 374C171 374 102 329 102 260Z" fill="url(#mobiusA)"/>
+  <path d="M410 260C410 191 341 146 256 146C188 146 131 175 99 224L74 214C113 151 179 120 256 120C351 120 428 182 428 260C428 338 351 400 256 400C178 400 111 368 74 306L99 296C131 344 188 374 256 374C341 374 410 329 410 260Z" fill="url(#mobiusB)"/>
+
+  <ellipse cx="256" cy="256" rx="26" ry="10" fill="#C5FFF2" opacity="0.42"/>
 </svg>
