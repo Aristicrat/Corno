@@ -39,13 +39,13 @@ export function IPhoneFrame({ children }: IPhoneFrameProps) {
             type="button"
             aria-label="Go Back"
             onClick={goBack}
-            className="pointer-events-auto absolute left-0 top-0 bottom-0 w-[12vw] min-w-14 max-w-28 bg-transparent"
+            className="pointer-events-auto absolute left-0 top-[86px] bottom-0 w-[8vw] min-w-10 max-w-16 bg-transparent"
           />
           <button
             type="button"
             aria-label="Go Forward"
             onClick={goForward}
-            className="pointer-events-auto absolute right-0 top-0 bottom-0 w-[12vw] min-w-14 max-w-28 bg-transparent"
+            className="pointer-events-auto absolute right-0 top-[86px] bottom-0 w-[8vw] min-w-10 max-w-16 bg-transparent"
           />
         </div>
       )}
