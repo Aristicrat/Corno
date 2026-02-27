@@ -3,7 +3,6 @@ import { SplashScreen } from "./screens/SplashScreen";
 import { MicPermissionScreen } from "./screens/MicPermissionScreen";
 import { MainTunerScreen } from "./screens/MainTunerScreen";
 import { PrivacyScreen } from "./screens/PrivacyScreen";
-import { DevFlowControls } from "./components/DevFlowControls";
 import { TelemetryTracker } from "./components/TelemetryTracker";
 
 // Simple error fallback component
@@ -26,7 +25,6 @@ function RootLayout() {
     <>
       <Outlet />
       <TelemetryTracker />
-      <DevFlowControls />
     </>
   );
 }
