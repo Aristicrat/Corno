@@ -49,6 +49,8 @@ interface Shard {
   flowPhase: number;
   mobiusU: number;
   mobiusV: number;
+  prevTargetX: number;
+  prevTargetY: number;
 }
 
 export function ParticleField({
@@ -85,8 +87,8 @@ export function ParticleField({
     const isIOSRuntime =
       isIOSDevice || (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
     const dprCap = isIOSRuntime ? 1.5 : 2;
-    const deviceParticleScale = isIOSDevice ? 0.68 : 1;
-    const minParticles = isIOSDevice ? 100 : 120;
+    const deviceParticleScale = isIOSDevice ? 0.55 : 1;
+    const minParticles = isIOSDevice ? 80 : 120;
     const resolvedParticleCount = Math.max(
       minParticles,
       Math.round(particleCount * deviceParticleScale * (isIOSRuntime ? 0.62 : 1))
@@ -105,7 +107,7 @@ export function ParticleField({
     setCanvasSize();
     window.addEventListener("resize", setCanvasSize);
     frameTickerRef.current = 0;
-    const targetUpdateInterval = isIOSDevice ? 2 : 1;
+    const targetUpdateInterval = isIOSDevice ? 3 : 1;
     const getGlowSprite = (radius: number) => {
       const cache = glowCanvasCacheRef.current;
       const cacheKey = Math.round(radius * 10);
@@ -166,6 +168,8 @@ export function ParticleField({
           alpha: 0.4 + Math.random() * 0.4, // 0.4-0.8 for depth variation
           targetX: x,
           targetY: y,
+          prevTargetX: x,
+          prevTargetY: y,
           depth: Math.random(), // 0-1 for layering
           offsetAngle,
           offsetRadius,
@@ -184,13 +188,11 @@ export function ParticleField({
     const animate = () => {
       timeRef.current += 0.016; // ~60fps
       introProgressRef.current = Math.min(1, introProgressRef.current + 0.0065);
+      const tick = frameTickerRef.current;
       frameTickerRef.current += 1;
-
-      const skipDrawFrame = isIOSDevice && frameTickerRef.current % 2 === 1;
-      if (skipDrawFrame) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-        return;
-      }
+      const framesSinceUpdate = tick % targetUpdateInterval;
+      const shouldRecalcTargets = !isIOSDevice || framesSinceUpdate === 0;
+      const interpFactor = isIOSDevice ? framesSinceUpdate / targetUpdateInterval : 1;
       
       // Clear with transparency
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -361,9 +363,6 @@ export function ParticleField({
         ? Math.max(0, Math.min(1, 1 - Math.abs(centsDeviation) / 30))
         : 0;
 
-      const shouldRecalcTargets =
-        frameTickerRef.current === 1 || frameTickerRef.current % targetUpdateInterval === 0;
-
       // Update shard positions
       shardsRef.current.forEach((shard, index) => {
         let nextTargetX = shard.targetX;
@@ -473,10 +472,19 @@ export function ParticleField({
           }
         }
 
-        const targetX = nextTargetX;
-        const targetY = nextTargetY;
-        shard.targetX = targetX;
-        shard.targetY = targetY;
+        const targetX = isIOSDevice
+          ? shard.prevTargetX + (nextTargetX - shard.prevTargetX) * interpFactor
+          : nextTargetX;
+        const targetY = isIOSDevice
+          ? shard.prevTargetY + (nextTargetY - shard.prevTargetY) * interpFactor
+          : nextTargetY;
+
+        if (shouldRecalcTargets) {
+          shard.prevTargetX = shard.targetX;
+          shard.prevTargetY = shard.targetY;
+        }
+        shard.targetX = nextTargetX;
+        shard.targetY = nextTargetY;
 
         // Smooth attraction to target position
         const dx = targetX - shard.x;
