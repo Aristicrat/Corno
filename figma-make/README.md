@@ -4,12 +4,12 @@ This folder stores code exports generated from Figma Make.
 
 ## Imports
 
-- `premium-tuning-app-flow/`: React + Vite export for the Premium Tuning App Flow
+- `corno/`: React + Vite export for Corno
 
 ## Run the imported app
 
 ```bash
-cd figma-make/premium-tuning-app-flow
+cd figma-make/corno
 npm install
 npm run dev
 ```

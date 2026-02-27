@@ -1,0 +1,26 @@
+{
+  "installCommand": "npm --prefix figma-make/corno install",
+  "buildCommand": "npm --prefix figma-make/corno run build",
+  "outputDirectory": "figma-make/corno/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
+}
