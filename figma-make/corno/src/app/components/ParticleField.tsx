@@ -70,6 +70,8 @@ export function ParticleField({
   const animationFrameRef = useRef<number>();
   const timeRef = useRef(0);
   const introProgressRef = useRef(0);
+  const glowCanvasCacheRef = useRef<Map<number, HTMLCanvasElement | OffscreenCanvas>>(new Map());
+  const frameTickerRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -79,9 +81,16 @@ export function ParticleField({
     if (!ctx) return;
     const nav = window.navigator;
     const ua = nav.userAgent || "";
-    const isIOSRuntime = /iPhone|iPad|iPod/i.test(ua) || (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
+    const isIOSDevice = /iP(hone|ad|od)/i.test(ua);
+    const isIOSRuntime =
+      isIOSDevice || (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
     const dprCap = isIOSRuntime ? 1.5 : 2;
-    const resolvedParticleCount = Math.max(120, Math.round(particleCount * (isIOSRuntime ? 0.62 : 1)));
+    const deviceParticleScale = isIOSDevice ? 0.68 : 1;
+    const minParticles = isIOSDevice ? 100 : 120;
+    const resolvedParticleCount = Math.max(
+      minParticles,
+      Math.round(particleCount * deviceParticleScale * (isIOSRuntime ? 0.62 : 1))
+    );
 
     // Set canvas size
     const setCanvasSize = () => {
@@ -95,6 +104,42 @@ export function ParticleField({
 
     setCanvasSize();
     window.addEventListener("resize", setCanvasSize);
+    frameTickerRef.current = 0;
+    const targetUpdateInterval = isIOSDevice ? 2 : 1;
+    const getGlowSprite = (radius: number) => {
+      const cache = glowCanvasCacheRef.current;
+      const cacheKey = Math.round(radius * 10);
+      if (cache.has(cacheKey)) return cache.get(cacheKey)!;
+      const size = Math.ceil(radius * 2 + 4);
+      const spriteCanvas =
+        typeof OffscreenCanvas !== "undefined"
+          ? new OffscreenCanvas(size, size)
+          : document.createElement("canvas");
+      spriteCanvas.width = size;
+      spriteCanvas.height = size;
+      const spriteCtx = spriteCanvas.getContext("2d", { alpha: true });
+      if (spriteCtx) {
+        const center = size / 2;
+        spriteCtx.clearRect(0, 0, size, size);
+        const gradient = spriteCtx.createRadialGradient(
+          center,
+          center,
+          radius * 0.07,
+          center,
+          center,
+          center
+        );
+        gradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+        gradient.addColorStop(0.55, "rgba(255, 255, 255, 0.35)");
+        gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+        spriteCtx.fillStyle = gradient;
+        spriteCtx.beginPath();
+        spriteCtx.arc(center, center, center, 0, Math.PI * 2);
+        spriteCtx.fill();
+      }
+      cache.set(cacheKey, spriteCanvas);
+      return spriteCanvas;
+    };
 
     // Initialize shards if needed
     if (shardsRef.current.length !== resolvedParticleCount) {
@@ -139,6 +184,13 @@ export function ParticleField({
     const animate = () => {
       timeRef.current += 0.016; // ~60fps
       introProgressRef.current = Math.min(1, introProgressRef.current + 0.0065);
+      frameTickerRef.current += 1;
+
+      const skipDrawFrame = isIOSDevice && frameTickerRef.current % 2 === 1;
+      if (skipDrawFrame) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
       
       // Clear with transparency
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -309,80 +361,122 @@ export function ParticleField({
         ? Math.max(0, Math.min(1, 1 - Math.abs(centsDeviation) / 30))
         : 0;
 
+      const shouldRecalcTargets =
+        frameTickerRef.current === 1 || frameTickerRef.current % targetUpdateInterval === 0;
+
       // Update shard positions
       shardsRef.current.forEach((shard, index) => {
-        let targetX: number;
-        let targetY: number;
+        let nextTargetX = shard.targetX;
+        let nextTargetY = shard.targetY;
 
-        if (formation === "lambda") {
-          const lambda = getLambdaTarget(shard);
-          const flowPulse = 0.6 + 0.4 * Math.sin(timeRef.current * shard.flowSpeed + shard.flowPhase);
-          const noiseX = Math.sin(shard.offsetAngle + timeRef.current * (0.55 + shard.flowSpeed * 0.2)) * (24 + spreadRadius * 0.24);
-          const noiseY = Math.cos(shard.offsetAngle * 1.5 + timeRef.current * (0.42 + shard.flowSpeed * 0.2)) * (24 + spreadRadius * 0.24);
-          const lambdaPull = Math.max(0, Math.min(1, cohesion * 0.85 * formationStrength));
-          targetX = lambda.x * lambdaPull + (centerX + noiseX * flowPulse) * (1 - lambdaPull);
-          targetY = lambda.y * lambdaPull + (centerY + noiseY * flowPulse) * (1 - lambdaPull);
-        } else if (formation === "mobius") {
-          const mobius = getMobiusTarget(shard);
-          const flowPulse = 0.88 + 0.12 * Math.sin(timeRef.current * shard.flowSpeed + shard.flowPhase);
-          const jitterScale = 1.15 + spreadRadius * 0.006;
-          const noiseX = Math.sin(shard.offsetAngle + timeRef.current * 0.35) * jitterScale;
-          const noiseY = Math.cos(shard.offsetAngle * 1.2 + timeRef.current * 0.31) * jitterScale;
-          const mobiusPull = Math.max(0, Math.min(1, cohesion * formationStrength * 1.18));
-          targetX = mobius.x * mobiusPull + (mobius.x + noiseX * flowPulse) * (1 - mobiusPull);
-          targetY = mobius.y * mobiusPull + (mobius.y + noiseY * flowPulse) * (1 - mobiusPull);
-        } else if (formation === "smile") {
-          const smile = getSmileTarget(index, shardsRef.current.length);
-          const pulse = 0.5 + 0.5 * Math.sin(timeRef.current * 1.8 + shard.flowPhase);
-          targetX = smile.x + Math.sin(shard.offsetAngle + timeRef.current * 0.5) * (2 + pulse * 2);
-          targetY = smile.y + Math.cos(shard.offsetAngle + timeRef.current * 0.5) * (2 + pulse * 2);
-        } else if (formation === "scatter") {
-          const scatter = getScatterTarget(shard);
-          targetX = scatter.x;
-          targetY = scatter.y;
-        } else {
-          if (morphRingToCloudOnTune) {
-            // Tuner morph mode: default ring -> cloud as tuning gets closer.
-            const ringTheta = shard.offsetAngle + timeRef.current * (0.05 + shard.flowSpeed * 0.02);
-            const ringRadius = spreadRadius * (0.72 + shard.depth * 0.34);
-            const ringBreathe = 1 + Math.sin(timeRef.current * 0.45 + shard.flowPhase) * 0.04;
-            const shake = Math.min(1, Math.max(0, tuneHoldProgress));
-            const wobbleAmp = 6 + shake * 10;
-            const ringWobbleX = Math.sin(shard.offsetAngle * 1.8 + timeRef.current * (0.42 + shake * 1.0)) * wobbleAmp;
-            const ringWobbleY = Math.cos(shard.offsetAngle * 1.55 + timeRef.current * (0.38 + shake * 0.95)) * wobbleAmp;
-            const ringX = centerX + Math.cos(ringTheta) * ringRadius * ringBreathe + ringWobbleX;
-            const ringY = centerY + Math.sin(ringTheta) * ringRadius * 0.62 * ringBreathe + ringWobbleY;
-
-            const noiseX = Math.sin(shard.offsetAngle + timeRef.current * 0.3) * spreadRadius;
-            const noiseY = Math.cos(shard.offsetAngle * 1.7 + timeRef.current * 0.25) * spreadRadius;
-            const cloudX = centerX + noiseX * (1 - cohesion) + (Math.random() - 0.5) * 20;
-            const cloudY = centerY + noiseY * (1 - cohesion) + (Math.random() - 0.5) * 20;
-
-            targetX = ringX * (1 - tuneCloseness) + cloudX * tuneCloseness;
-            targetY = ringY * (1 - tuneCloseness) + cloudY * tuneCloseness;
-          } else
-          // STOCHASTIC DISTRIBUTION - no circular patterns!
-          // In-tune cloud should feel uniform/expansive (not collapsing to a center ball).
-          if (normalizedState === "inTune") {
-            const theta = shard.offsetAngle + timeRef.current * (0.045 + shard.flowSpeed * 0.022);
-            const bandRadius = spreadRadius * (0.7 + shard.depth * 0.38);
-            const breathe = 1 + Math.sin(timeRef.current * 0.4 + shard.flowPhase) * 0.045;
-            const shake = Math.min(1, Math.max(0, tuneHoldProgress));
-            const wobbleAmp = 8 + shake * 12;
-            const wobbleSpeedX = 0.45 + shake * 1.1;
-            const wobbleSpeedY = 0.41 + shake * 1.0;
-            const wobbleX = Math.sin(shard.offsetAngle * 1.9 + timeRef.current * wobbleSpeedX) * wobbleAmp;
-            const wobbleY = Math.cos(shard.offsetAngle * 1.6 + timeRef.current * wobbleSpeedY) * wobbleAmp;
-            targetX = centerX + Math.cos(theta) * bandRadius * breathe + wobbleX;
-            targetY = centerY + Math.sin(theta) * bandRadius * 0.6 * breathe + wobbleY;
+        if (shouldRecalcTargets) {
+          if (formation === "lambda") {
+            const lambda = getLambdaTarget(shard);
+            const flowPulse =
+              0.6 + 0.4 * Math.sin(timeRef.current * shard.flowSpeed + shard.flowPhase);
+            const noiseX =
+              Math.sin(shard.offsetAngle + timeRef.current * (0.55 + shard.flowSpeed * 0.2)) *
+              (24 + spreadRadius * 0.24);
+            const noiseY =
+              Math.cos(shard.offsetAngle * 1.5 + timeRef.current * (0.42 + shard.flowSpeed * 0.2)) *
+              (24 + spreadRadius * 0.24);
+            const lambdaPull = Math.max(0, Math.min(1, cohesion * 0.85 * formationStrength));
+            nextTargetX =
+              lambda.x * lambdaPull + (centerX + noiseX * flowPulse) * (1 - lambdaPull);
+            nextTargetY =
+              lambda.y * lambdaPull + (centerY + noiseY * flowPulse) * (1 - lambdaPull);
+          } else if (formation === "mobius") {
+            const mobius = getMobiusTarget(shard);
+            const flowPulse =
+              0.88 + 0.12 * Math.sin(timeRef.current * shard.flowSpeed + shard.flowPhase);
+            const jitterScale = 1.15 + spreadRadius * 0.006;
+            const noiseX = Math.sin(shard.offsetAngle + timeRef.current * 0.35) * jitterScale;
+            const noiseY = Math.cos(shard.offsetAngle * 1.2 + timeRef.current * 0.31) * jitterScale;
+            const mobiusPull = Math.max(0, Math.min(1, cohesion * formationStrength * 1.18));
+            nextTargetX =
+              mobius.x * mobiusPull + (mobius.x + noiseX * flowPulse) * (1 - mobiusPull);
+            nextTargetY =
+              mobius.y * mobiusPull + (mobius.y + noiseY * flowPulse) * (1 - mobiusPull);
+          } else if (formation === "smile") {
+            const smile = getSmileTarget(index, shardsRef.current.length);
+            const pulse =
+              0.5 + 0.5 * Math.sin(timeRef.current * 1.8 + shard.flowPhase);
+            nextTargetX =
+              smile.x + Math.sin(shard.offsetAngle + timeRef.current * 0.5) * (2 + pulse * 2);
+            nextTargetY =
+              smile.y + Math.cos(shard.offsetAngle + timeRef.current * 0.5) * (2 + pulse * 2);
+          } else if (formation === "scatter") {
+            const scatter = getScatterTarget(shard);
+            nextTargetX = scatter.x;
+            nextTargetY = scatter.y;
           } else {
-            // Use Perlin-like noise for organic movement
-            const noiseX = Math.sin(shard.offsetAngle + timeRef.current * 0.3) * spreadRadius;
-            const noiseY = Math.cos(shard.offsetAngle * 1.7 + timeRef.current * 0.25) * spreadRadius;
-            targetX = centerX + noiseX * (1 - cohesion) + (Math.random() - 0.5) * 20;
-            targetY = centerY + noiseY * (1 - cohesion) + (Math.random() - 0.5) * 20;
+            if (morphRingToCloudOnTune) {
+              // Tuner morph mode: default ring -> cloud as tuning gets closer.
+              const ringTheta =
+                shard.offsetAngle + timeRef.current * (0.05 + shard.flowSpeed * 0.02);
+              const ringRadius = spreadRadius * (0.72 + shard.depth * 0.34);
+              const ringBreathe =
+                1 + Math.sin(timeRef.current * 0.45 + shard.flowPhase) * 0.04;
+              const shake = Math.min(1, Math.max(0, tuneHoldProgress));
+              const wobbleAmp = 6 + shake * 10;
+              const ringWobbleX =
+                Math.sin(shard.offsetAngle * 1.8 + timeRef.current * (0.42 + shake * 1.0)) *
+                wobbleAmp;
+              const ringWobbleY =
+                Math.cos(shard.offsetAngle * 1.55 + timeRef.current * (0.38 + shake * 0.95)) *
+                wobbleAmp;
+              const ringX =
+                centerX +
+                Math.cos(ringTheta) * ringRadius * ringBreathe +
+                ringWobbleX;
+              const ringY =
+                centerY +
+                Math.sin(ringTheta) * ringRadius * 0.62 * ringBreathe +
+                ringWobbleY;
+
+              const noiseX = Math.sin(shard.offsetAngle + timeRef.current * 0.3) * spreadRadius;
+              const noiseY =
+                Math.cos(shard.offsetAngle * 1.7 + timeRef.current * 0.25) * spreadRadius;
+              const cloudX =
+                centerX + noiseX * (1 - cohesion) + (Math.random() - 0.5) * 20;
+              const cloudY =
+                centerY + noiseY * (1 - cohesion) + (Math.random() - 0.5) * 20;
+
+              nextTargetX = ringX * (1 - tuneCloseness) + cloudX * tuneCloseness;
+              nextTargetY = ringY * (1 - tuneCloseness) + cloudY * tuneCloseness;
+            } else if (normalizedState === "inTune") {
+              const theta =
+                shard.offsetAngle + timeRef.current * (0.045 + shard.flowSpeed * 0.022);
+              const bandRadius = spreadRadius * (0.7 + shard.depth * 0.38);
+              const breathe = 1 + Math.sin(timeRef.current * 0.4 + shard.flowPhase) * 0.045;
+              const shake = Math.min(1, Math.max(0, tuneHoldProgress));
+              const wobbleAmp = 8 + shake * 12;
+              const wobbleSpeedX = 0.45 + shake * 1.1;
+              const wobbleSpeedY = 0.41 + shake * 1.0;
+              const wobbleX =
+                Math.sin(shard.offsetAngle * 1.9 + timeRef.current * wobbleSpeedX) * wobbleAmp;
+              const wobbleY =
+                Math.cos(shard.offsetAngle * 1.6 + timeRef.current * wobbleSpeedY) * wobbleAmp;
+              nextTargetX =
+                centerX + Math.cos(theta) * bandRadius * breathe + wobbleX;
+              nextTargetY =
+                centerY + Math.sin(theta) * bandRadius * 0.6 * breathe + wobbleY;
+            } else {
+              const noiseX = Math.sin(shard.offsetAngle + timeRef.current * 0.3) * spreadRadius;
+              const noiseY =
+                Math.cos(shard.offsetAngle * 1.7 + timeRef.current * 0.25) * spreadRadius;
+              nextTargetX =
+                centerX + noiseX * (1 - cohesion) + (Math.random() - 0.5) * 20;
+              nextTargetY =
+                centerY + noiseY * (1 - cohesion) + (Math.random() - 0.5) * 20;
+            }
           }
         }
+
+        const targetX = nextTargetX;
+        const targetY = nextTargetY;
+        shard.targetX = targetX;
+        shard.targetY = targetY;
 
         // Smooth attraction to target position
         const dx = targetX - shard.x;
@@ -429,8 +523,13 @@ export function ParticleField({
         // Update rotation
         shard.rotation += shard.rotationSpeed;
 
-        // Draw glass shard with a dreamlike fade-in on refresh/load
-        drawGlassShard(ctx, shard, backgroundColor, (0.14 + intro * 0.86) * opacityMultiplier, isIOSRuntime);
+        // Draw luminous point using cached glow sprite
+        drawGlowParticle(
+          ctx,
+          shard,
+          (0.14 + intro * 0.86) * opacityMultiplier,
+          getGlowSprite
+        );
       });
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -456,41 +555,25 @@ export function ParticleField({
 }
 
 /**
- * Draw a single glass shard with refraction effects
- * - Specular edge highlights
- * - Subtle internal reflections
- * - Refraction/distortion of background
- * - Faint caustic glints
+ * Draw a single luminous point using the cached glow sprite.
  */
-function drawGlassShard(
+function drawGlowParticle(
   ctx: CanvasRenderingContext2D,
   shard: Shard,
-  backgroundColor: string,
   introAlpha = 1,
-  reducedEffects = false
+  glowSpriteGetter: (radius: number) => HTMLCanvasElement | OffscreenCanvas
 ) {
   ctx.save();
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.rotation);
 
-  const size = shard.size;
+  const radius = Math.max(1.4, shard.size * 0.5);
+  const sprite = glowSpriteGetter(radius);
+  const spriteSize = sprite.width;
+  const baseAlpha = Math.min(1, shard.alpha * 1.1 * introAlpha);
 
-  // Layered depth: front shards sharper, back shards softer
-  const radius = Math.max(1.4, size * 0.5);
-  const blurAmount = reducedEffects ? 0.4 : shard.depth * 1.6;
-  ctx.shadowBlur = blurAmount;
-  ctx.shadowColor = backgroundColor;
-
-  const baseAlpha = Math.min(1, shard.alpha * 1.2 * introAlpha);
-  const gradient = ctx.createRadialGradient(0, 0, radius * 0.1, 0, 0, radius);
-  gradient.addColorStop(0, `rgba(255, 255, 255, ${baseAlpha})`);
-  gradient.addColorStop(0.35, `rgba(255, 255, 255, ${baseAlpha * 0.45})`);
-  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.globalAlpha = baseAlpha;
+  ctx.drawImage(sprite, -spriteSize / 2, -spriteSize / 2, spriteSize, spriteSize);
 
   ctx.restore();
 }
