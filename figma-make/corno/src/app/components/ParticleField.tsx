@@ -77,10 +77,15 @@ export function ParticleField({
 
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
+    const nav = window.navigator;
+    const ua = nav.userAgent || "";
+    const isIOSRuntime = /iPhone|iPad|iPod/i.test(ua) || (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
+    const dprCap = isIOSRuntime ? 1.5 : 2;
+    const resolvedParticleCount = Math.max(120, Math.round(particleCount * (isIOSRuntime ? 0.62 : 1)));
 
     // Set canvas size
     const setCanvasSize = () => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(dprCap, window.devicePixelRatio || 1);
       canvas.width = canvas.offsetWidth * dpr;
       canvas.height = canvas.offsetHeight * dpr;
       // Reset transform before scaling to avoid cumulative scale on repeated resizes.
@@ -92,11 +97,12 @@ export function ParticleField({
     window.addEventListener("resize", setCanvasSize);
 
     // Initialize shards if needed
-    if (shardsRef.current.length === 0) {
+    if (shardsRef.current.length !== resolvedParticleCount) {
+      shardsRef.current = [];
       const centerX = canvas.offsetWidth / 2;
       const centerY = canvas.offsetHeight / 2 - 40; // Slightly above center
 
-      for (let i = 0; i < particleCount; i++) {
+      for (let i = 0; i < resolvedParticleCount; i++) {
         // Stochastic distribution - random angles and radii
         const offsetAngle = Math.random() * Math.PI * 2;
         const offsetRadius = (Math.random() * 60 + Math.random() * 30) * spreadMultiplier; // Varied spread
@@ -424,7 +430,7 @@ export function ParticleField({
         shard.rotation += shard.rotationSpeed;
 
         // Draw glass shard with a dreamlike fade-in on refresh/load
-        drawGlassShard(ctx, shard, backgroundColor, (0.14 + intro * 0.86) * opacityMultiplier);
+        drawGlassShard(ctx, shard, backgroundColor, (0.14 + intro * 0.86) * opacityMultiplier, isIOSRuntime);
       });
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -460,7 +466,8 @@ function drawGlassShard(
   ctx: CanvasRenderingContext2D,
   shard: Shard,
   backgroundColor: string,
-  introAlpha = 1
+  introAlpha = 1,
+  reducedEffects = false
 ) {
   ctx.save();
   ctx.translate(shard.x, shard.y);
@@ -470,7 +477,7 @@ function drawGlassShard(
   const halfSize = size / 2;
 
   // Layered depth: front shards sharper, back shards softer
-  const blurAmount = shard.depth * 1.5;
+  const blurAmount = reducedEffects ? 0.35 : shard.depth * 1.5;
   ctx.shadowBlur = blurAmount;
 
   // Main glass body - slightly darkened background color for refraction
