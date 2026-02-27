@@ -1,0 +1,76 @@
+/* Premium Tuner App Design Tokens - Light Atmospheric Theme */
+
+:root {
+  /* Background - Light Gradient */
+  --tuner-bg-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #f0f4f8 100%);
+  --tuner-bg-primary: #f8f9fa;
+  --tuner-bg-secondary: #ffffff;
+  --tuner-bg-card: rgba(255, 255, 255, 0.8);
+  --tuner-bg-elevated: rgba(255, 255, 255, 0.95);
+  
+  /* Tuning State Colors - Orange to Green System */
+  --tuner-color-far: #FF8A3D;           /* Far from pitch - warm orange */
+  --tuner-color-approaching: #FFD60A;   /* Getting closer - yellow */
+  --tuner-color-near: #A0D911;          /* Near accurate - yellow-green */
+  --tuner-color-perfect: #34C759;       /* Perfect pitch - vibrant green */
+  
+  /* Glow/Shadow Effects */
+  --tuner-glow-orange: rgba(255, 138, 61, 0.3);
+  --tuner-glow-yellow: rgba(255, 214, 10, 0.3);
+  --tuner-glow-green: rgba(52, 199, 89, 0.4);
+  
+  /* Text Colors */
+  --tuner-text-primary: #1a1a1a;
+  --tuner-text-secondary: #6b7280;
+  --tuner-text-tertiary: #9ca3af;
+  
+  /* Particle System - Dynamic Colors */
+  --tuner-particle-default: rgba(156, 163, 175, 0.4);
+  --tuner-particle-active: var(--tuner-color-approaching);
+  --tuner-particle-success: var(--tuner-color-perfect);
+  
+  /* Effects - Soft Shadows */
+  --tuner-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --tuner-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --tuner-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+  
+  /* Motion - Spring Physics */
+  --tuner-spring-stiff: 200;
+  --tuner-spring-damp: 25;
+  --tuner-spring-mass: 1;
+  
+  /* Spacing */
+  --tuner-spacing-xs: 0.5rem;
+  --tuner-spacing-sm: 1rem;
+  --tuner-spacing-md: 1.5rem;
+  --tuner-spacing-lg: 2rem;
+  --tuner-spacing-xl: 3rem;
+  
+  /* Border Radius - Soft Rounded */
+  --tuner-radius-sm: 0.75rem;
+  --tuner-radius-md: 1rem;
+  --tuner-radius-lg: 1.5rem;
+  --tuner-radius-full: 9999px;
+}
+
+/* Custom Range Slider Styles - Light Theme */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--tuner-color-perfect);
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--tuner-glow-green);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--tuner-color-perfect);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px var(--tuner-glow-green);
+}
